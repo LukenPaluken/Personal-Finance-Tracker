@@ -13,16 +13,15 @@ def main_menu() -> None:
             op = input("Enter an option: ")
             match op:
                 case "1":
-                    us.menu("data/users.json")
+                    pass
                 case "2":
                     pass
                 case "3":
                     pass
                 case "4":
-                    pass
+                    us.menu("data/users.json")
                 case "5":
                     print("Closing...")
-                    break
                 case _:
                     print("Please enter a correct option.")
                     continue

@@ -1,8 +1,13 @@
+"""change everything to where all the options pop up if user is already logged in, otherwise they only see the 'log in' option.
+also, have their username be a 'global' var, so its easily accessed without having to ask for their username.
+"""
+
+
 import tools as tool
 import re
 import time
 
-def login_to_account(file_name: str) -> bool:
+def login_to_account(file_name: str) -> str:
     try:
         users = tool.read_json(file_name)
     except FileNotFoundError:
@@ -78,7 +83,8 @@ def login_to_account(file_name: str) -> bool:
                 user_data["failed_attempts"] = 0
                 tool.write_json(file_name, users)
                 time.sleep(1)
-                return
+                return username
+                
             else:
                 print(f"Incorrect password. Attempts left: {2 - attempt}")
 
@@ -97,6 +103,27 @@ def login_to_account(file_name: str) -> bool:
                     return
 
         return True
+
+
+def valid_password(user_password: str) -> None:
+    while True:
+        if len(user_password) < 8 or len(user_password) > 16:
+            print("Error: Password must be between 8 and 16 characters.")
+            continue
+        if not any(char.isdigit() for char in user_password):
+            print("Error: Password must include at least one number.")
+            continue
+        if not any(char.isalpha() for char in user_password):
+            print("Error: Password must include at least one letter.")
+            continue
+        if not any(char in "!@#$%^&*()-_+=<>?/" for char in user_password):
+            print(
+                "Error: Password must include at least one special character (!@#$%^&*()-_+=<>?/)."
+            )
+            continue
+        break
+    
+    return True
     
 
 def create_account(file_name: str) -> None:
@@ -110,10 +137,6 @@ def create_account(file_name: str) -> None:
         return {}
     username_pattern = r"^[a-zA-Z0-9_]+$"
     email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-    
-    SECURITY_QUESTIONS = ["What is your pet's name?",
-                          "What is your favorite movie?",
-                          "What is your favorite food?"]
 
     tool.clean_screen()
     tool.print_logo()
@@ -143,20 +166,7 @@ def create_account(file_name: str) -> None:
 
         # Validate Password
         user_password = input("\nEnter password (8 - 16 characters): ").strip()
-        if len(user_password) < 8 or len(user_password) > 16:
-            print("Error: Password must be between 8 and 16 characters.")
-            continue
-        if not any(char.isdigit() for char in user_password):
-            print("Error: Password must include at least one number.")
-            continue
-        if not any(char.isalpha() for char in user_password):
-            print("Error: Password must include at least one letter.")
-            continue
-        if not any(char in "!@#$%^&*()-_+=<>?/" for char in user_password):
-            print(
-                "Error: Password must include at least one special character (!@#$%^&*()-_+=<>?/)."
-            )
-            continue
+        valid_password(user_password)
         
         # Validate Security Question
         print("\nPick one of the following security questions: ")
@@ -174,7 +184,7 @@ def create_account(file_name: str) -> None:
 
         # All checks passed
         print("Account successfully created!")
-        users[username] = {"email": user_email, "password": user_password, "security_answer": user_security_question_answer}
+        users[username] = {"email": user_email, "password": user_password, "security_answer": user_security_question_answer, "security_question": user_security_question_choice}
         tool.write_json(file_name, users)
         time.sleep(1)
         break
@@ -239,21 +249,68 @@ def delete_account(file_name: str) -> None:
                 print("Invalid input. Please enter 'y' or 'n'.")
                 
 
-def change_password(file_name: str ) -> None:
+def change_password(file_name: str, username: str) -> None:
     try:
         users = tool.read_json(file_name)
     except FileNotFoundError:
         print(f"File {file_name} not found.")
         return {}
     
+    print("Welcome to password change!")
     
-
+    user_data = users[username]
+    incorrect_guesses = 0
+    
+    while True:
+        password = input("\nEnter your old password: ").strip()
+        
+        if password != user_data["password"]:
+            print("Password is incorrect.")
+            incorrect_guesses += 1
+            
+            if incorrect_guesses >= 3:
+                op = input("Do you wish to answer a security question? y/n: ").lower().strip()
+                if op == "y":
+                    print(user_data["security_question"])
+                    answer = input("Answer: ")
+                    if answer != user_data["security_answer"]:
+                        print("Answer is incorrect.")
+                        return
+                elif op == "n":
+                    print("Returning...")
+                    time.sleep(1)
+                    return
+                else:
+                    print("Invalid input. Please enter 'y' or 'n'.")
+                    return
+        else:
+            new_password = input("Enter new password: ")
+            if valid_password(new_password):
+                repeat_password = input("Re-enter new password: ")
+                if new_password == repeat_password:
+                    try:
+                        user_data["password"] = new_password
+                        tool.write_json(user_data, new_password)
+                        print("Password change succesful!")
+                        time.sleep(1)
+                        return
+                    except IOError:
+                        print("Error: Unable to save changes to file.")
+                        time.sleep(1)
+                        return
+                else:
+                    print("Passwords must be the same.")
+                    time.sleep(1)
+                    return
+            else:
+                continue
+                
 
 def menu(file_name: str) -> None:
     while True:
         tool.clean_screen()
         tool.print_logo()
-        options = ["Login", "Create account", "Delete account"]
+        options = ["Login", "Create account", "Delete account", "Change password"]
 
         tool.show_options(options)
 
@@ -261,10 +318,17 @@ def menu(file_name: str) -> None:
 
         match op:
             case "1":
-                login_to_account(file_name)
+                username = login_to_account(file_name)
             case "2":
                 create_account(file_name)
             case "3":
                 delete_account(file_name)
+            case "4":
+                change_password(file_name, username)
             case _:
                 print("Enter a valid option.")
+
+
+SECURITY_QUESTIONS = ["What is your pet's name?",
+                          "What is your favorite movie?",
+                          "What is your favorite food?"]
