@@ -26,7 +26,7 @@ def show_options(options: list[str]) -> None:
     """
     Prints a list of options.
     
-    Parameters:
+    Args:
         options: list[str]
     """
     for num, op in enumerate(options, start=1):
@@ -40,7 +40,7 @@ def read_json(file_path: str) -> dict:
     
     If file isn't found, it returns an empty dictionary.
     
-    Parameters:
+    Args:
         file_path: str.
     
     Returns: 
@@ -60,7 +60,7 @@ def write_json(file_path: str, dictionary: dict) -> bool:
     
     Opens file in specified path and dumps dictionary.
     
-    Parameters:
+    Args:
         file_path: str.
         dictionary: dict.
         

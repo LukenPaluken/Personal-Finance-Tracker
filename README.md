@@ -15,4 +15,5 @@ Features:
 
 
 Personal notes:
-- #note: json is created when write_json() is called.
+- Need to fix the menu return in user.change_password(). Right now, it only goes back to user.menu() - Need it to go back to main.main_menu().
+- Need to add account lock functionality to user.change_password(). Honestly just rewrite this functionality and make it a function, too much ugly repetition otherwise.
