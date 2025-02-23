@@ -9,6 +9,7 @@ _logged_in_user = None
 
 stop_main_loop = False
 
+
 # Getter function. Allows for global variable usage across different modules.
 def get_logged_in_user() -> str:
     """
@@ -103,9 +104,9 @@ def valid_email(email: str, file: str) -> bool:
 
 def account_unlocked(user: str, file: str) -> None:
     users = tool.read_json(file)
-    
+
     user_data = users[user]
-    
+
     if user_data.get("locked", False):
         lock_time = user_data.get("lock_time")
         if lock_time:
@@ -119,9 +120,7 @@ def account_unlocked(user: str, file: str) -> None:
                 time.sleep(1)
                 return
             else:
-                print(
-                    "Your account has been unlocked. You can try logging in again."
-                )
+                print("Your account has been unlocked. You can try logging in again.")
                 user_data["locked"] = False
                 user_data["failed_attempts"] = 0
                 del user_data["lock_time"]
@@ -142,10 +141,10 @@ def login_to_account(file: str) -> bool:
         file (str): The file path of the JSON file containing existing user info.
 
     Returns:
-        bool: 
+        bool:
     """
     global stop_main_loop
-    
+
     users = tool.read_json(file)
 
     tool.clean_screen()
@@ -176,7 +175,7 @@ def login_to_account(file: str) -> bool:
                 print("Please enter a valid option (y/n).")
                 continue
         else:
-            username = input("Enter your username (-1 to cancel): ").lower().strip()
+            username = input("Enter your username (-1 to cancel, -2 to create account): ").lower().strip()
 
             if username == "-1":
                 print("Shutting down...")
@@ -184,6 +183,10 @@ def login_to_account(file: str) -> bool:
                 stop_main_loop = True
                 break
             
+            if username == "-2":
+                create_account(file)
+                return
+                
             if username not in users.keys():
                 print("Username doesn't exist.")
                 continue
@@ -223,7 +226,7 @@ def login_to_account(file: str) -> bool:
 
 def create_account(file: str) -> None:
     """Handles account creation.
-    
+
     Once all data is correctly entered, it's added to the JSON.
 
     Args:
@@ -248,33 +251,45 @@ def create_account(file: str) -> None:
         if not valid_email(email, file):
             continue
 
-        print("Choose one of fhe following security questions. You must be able to remember your answer in the future: ")
-        tool.show_options(con.SECURITY_QUESTIONS)
+        while True:
+            print(
+                "Choose one of fhe following security questions. You must be able to remember your answer in the future: "
+            )
+            tool.show_options(con.SECURITY_QUESTIONS)
 
-        user_security_question_choice = input("Option: ").strip()
-        if user_security_question_choice not in ["1", "2", "3"]:
-            print("Pick a correct option (1-3).")
-            continue
+            user_security_question_choice = input("Option: ").strip()
+            if user_security_question_choice not in ["1", "2", "3"]:
+                print("Pick a correct option (1-3).")
+                continue
 
-        user_security_question_answer = input(
-            f"Answer the chosen security question ({con.SECURITY_QUESTIONS[int(user_security_question_choice) - 1]}): "
-        ).strip().lower()
+            user_security_question_answer = (
+                input(
+                    f"Answer the chosen security question ({con.SECURITY_QUESTIONS[int(user_security_question_choice) - 1]}): "
+                )
+                .strip()
+                .lower()
+            )
 
-        if not user_security_question_answer:
-            print("Please enter an answer.")
-            continue
+            if not user_security_question_answer:
+                print("Please enter an answer.")
+                continue
 
-        # All checks passed
-        print("Account successfully created!")
-        users[username] = {
-            "email": email,
-            "password": password,
-            "security_answer": user_security_question_answer,
-            "security_question": user_security_question_choice,
-        }
-        tool.write_json(file, users)
-        time.sleep(1)
+            # All checks passed
+            print("Account successfully created!")
+            users[username] = {
+                "email": email,
+                "password": password,
+                "security_answer": user_security_question_answer,
+                "security_question": user_security_question_choice,
+            }
+            tool.write_json(file, users)
+            time.sleep(1)
+            
+            break
+        
         break
+    
+    set_logged_in_user(None)
 
 
 def change_password(file: str) -> None:
@@ -284,24 +299,23 @@ def change_password(file: str) -> None:
         file (str): The file path of the JSON file containing existing user info.
     """
     global _logged_in_user
-    
-    
+
     users = tool.read_json(file)
     stop_loop = False
-    
+
     user_data = users[_logged_in_user]
-    
+
     tool.clean_screen()
     tool.print_logo()
     print("Welcome to password change!")
-    
+
     while True:
         for _ in range(2):
             current_password = input("Current password: ").strip()
-            
+
             if current_password == user_data["password"]:
                 new_password = input("New password: ").strip()
-                
+
                 if valid_password(new_password):
                     user_data["password"] = new_password
                     tool.write_json(file, users)
@@ -313,18 +327,18 @@ def change_password(file: str) -> None:
             else:
                 print("Incorrect. Try again.")
                 continue
-        
+
         if stop_loop == True:
             break
-        
+
         user_choice = input("Continue with security question? (y/n): ").lower().strip()
-        
+
         if user_choice == "y":
             print(f"{con.SECURITY_QUESTIONS[int(user_data["security_question"]) - 1]}")
-            
+
             for attempt in range(3):
                 security_question_answer = input("Answer: ")
-                
+
                 if security_question_answer == user_data["security_answer"]:
                     new_password = input("New password: ")
                     if valid_password(new_password):
@@ -337,23 +351,19 @@ def change_password(file: str) -> None:
                         break
                 else:
                     print("Incorrect. Try again.")
-            
+
             account_unlocked(_logged_in_user, file)
-            
-            user_data["failed_attempts"] = (
-                        user_data.get("failed_attempts", 0) + 1
-                    )
+
+            user_data["failed_attempts"] = user_data.get("failed_attempts", 0) + 1
 
             if user_data["failed_attempts"] >= 3:
                 user_data["locked"] = True
                 user_data["lock_time"] = time.time()
-                print(
-                    "Your account has been locked due to too many failed attempts."
-                )
+                print("Your account has been locked due to too many failed attempts.")
                 tool.write_json(file, users)
                 time.sleep(1)
                 return
-                    
+
         if user_choice == "n":
             print("Returning...")
             time.sleep(1)
@@ -361,21 +371,52 @@ def change_password(file: str) -> None:
         else:
             print("Please enter a valid option (y/n).")
             continue
-    
+
     return
+
+
+def delete_account(file: str) -> None:
+    global _logged_in_user
+
+    users = tool.read_json(file)
+
+    user_data = users[_logged_in_user]
+
+    user_choice = input("Are you sure you want to delete your account? (y/n): ").lower()
+
+    while True:
+        if user_choice == "y":
+            password = input("Enter your password: ")
+            if password == user_data["password"]:
+                users.pop(_logged_in_user)
+                tool.write_json(file, users)
+                print("Succesfully deleted account.")
+                time.sleep(1)
+                set_logged_in_user(None)
+                break
+            else:
+                print("Incorrect password.")
+                continue
+                
+        elif user_choice == "n":
+            print("Returning...")
+            return
+                
+        else:
+            print("Please enter a valid option.")
             
+    return
+
 
 def menu(file: str) -> None:
-    options = ["Create account",
-               "Change password",
-               "Home"]
-    
+    options = ["Create account", "Change password", "Home", "Delete account"]
+
     while True:
         tool.clean_screen()
         tool.print_logo()
         tool.show_options(options)
         op = input("Enter an option: ")
-        
+
         match op:
             case "1":
                 create_account(file)
@@ -383,8 +424,8 @@ def menu(file: str) -> None:
                 change_password(file)
             case "3":
                 return
+            case "4":
+                delete_account(file)
             case _:
                 print("Please enter a valid option.")
                 continue
-
-

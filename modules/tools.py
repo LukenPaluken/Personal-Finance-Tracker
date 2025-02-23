@@ -71,7 +71,7 @@ def write_json(file_path: str, dictionary: dict) -> bool:
         os.mkdir('data')
     try:
         with open(file_path, 'wt', encoding='utf-8') as f:
-            myjson = json.dumps(dictionary)
+            myjson = json.dumps(dictionary, indent=4)
             f.write(myjson)
     except FileNotFoundError:
         return False
